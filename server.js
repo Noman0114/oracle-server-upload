@@ -6,7 +6,7 @@ const fs = require('fs');
 const bodyParser = require('body-parser');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 
 // Create upload directories
 const uploadDirs = {
@@ -170,6 +170,22 @@ app.get('/view/:category/:filename', isAuthenticated, (req, res) => {
     res.render('view', { file: fileInfo });
   } else {
     res.status(404).send('File not found');
+  }
+});
+
+app.delete('/delete/:category/:filename', isAuthenticated, (req, res) => {
+  const { category, filename } = req.params;
+  const filePath = path.join(uploadDirs[category], filename);
+
+  if (fs.existsSync(filePath)) {
+    try {
+      fs.unlinkSync(filePath);
+      res.json({ success: true, message: 'File deleted successfully' });
+    } catch (error) {
+      res.status(500).json({ success: false, message: 'Error deleting file' });
+    }
+  } else {
+    res.status(404).json({ success: false, message: 'File not found' });
   }
 });
 
