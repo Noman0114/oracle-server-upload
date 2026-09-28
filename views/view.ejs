@@ -73,12 +73,39 @@
       border-bottom: 2px solid #e1e8ed;
       padding-bottom: 20px;
       margin-bottom: 30px;
+      text-align: center;
     }
 
     .file-header h2 {
       color: #333;
       margin-bottom: 15px;
       word-break: break-all;
+    }
+
+    /* New CSS for Media Preview */
+    .media-preview {
+      margin: 20px 0 30px 0;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .media-preview img, 
+    .media-preview video {
+      max-width: 100%;
+      max-height: 500px; /* Taake bohot bari image screen se bahar na jaye */
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      object-fit: contain;
+    }
+
+    .file-icon {
+      font-size: 80px;
+      text-align: center;
+      margin: 20px 0;
     }
 
     .file-details {
@@ -158,12 +185,6 @@
       transform: translateY(-2px);
     }
 
-    .file-icon {
-      font-size: 80px;
-      text-align: center;
-      margin: 20px 0;
-    }
-
     @media (max-width: 768px) {
       .nav-links {
         flex-direction: column;
@@ -173,6 +194,10 @@
       .file-details {
         grid-template-columns: 1fr;
       }
+      
+      .media-preview {
+        padding: 10px;
+      }
     }
   </style>
 </head>
@@ -181,16 +206,33 @@
     <h1>File Details</h1>
     <div class="nav-links">
       <a href="/dashboard" class="btn btn-back">Back to Dashboard</a>
-      <a href="<%= file.path %>" class="btn btn-download">Quick Download</a>
+      <a href="<%= file.path %>" class="btn btn-download" download>Quick Download</a>
     </div>
   </nav>
 
   <div class="container">
     <div class="file-info">
+      
       <div class="file-header">
-        <div class="file-icon">📄</div>
         <h2><%= file.name %></h2>
       </div>
+
+      <!-- EJS LOGIC FOR MEDIA PREVIEW -->
+      <% if (file.category === 'images') { %>
+        <div class="media-preview">
+          <img src="<%= file.path %>" alt="<%= file.name %>" />
+        </div>
+      <% } else if (file.category === 'videos') { %>
+        <div class="media-preview">
+          <video controls preload="metadata">
+            <source src="<%= file.path %>">
+            Your browser does not support the video tag.
+          </video>
+        </div>
+      <% } else { %>
+        <div class="file-icon">📄</div>
+      <% } %>
+      <!-- END PREVIEW LOGIC -->
 
       <div class="file-details">
         <div class="detail-item">
@@ -211,7 +253,7 @@
       <div class="download-section">
         <h3>Ready to Download</h3>
         <p>Click the button below to download this file to your device</p>
-        <a href="<%= file.path %>" class="btn-download-large">Download File</a>
+        <a href="<%= file.path %>" class="btn-download-large" download>Download File</a>
       </div>
     </div>
   </div>
