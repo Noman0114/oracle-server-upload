@@ -27,23 +27,26 @@
     }
 
     .navbar h1 {
-      font-size: 24px;
+      font-size: 20px;
       color: #333;
     }
 
     .nav-links {
       display: flex;
-      gap: 15px;
+      gap: 10px;
     }
 
     .btn {
-      padding: 8px 20px;
+      padding: 8px 16px;
       border: none;
       border-radius: 6px;
       cursor: pointer;
       text-decoration: none;
       font-size: 14px;
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
     }
 
     .btn-back {
@@ -59,78 +62,86 @@
     .container {
       max-width: 900px;
       margin: 30px auto;
-      padding: 0 20px;
+      padding: 0 15px;
     }
 
     .file-info {
       background: white;
-      padding: 30px;
+      padding: 25px;
       border-radius: 12px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
 
     .file-header {
       border-bottom: 2px solid #e1e8ed;
-      padding-bottom: 20px;
-      margin-bottom: 30px;
+      padding-bottom: 15px;
+      margin-bottom: 25px;
       text-align: center;
     }
 
     .file-header h2 {
       color: #333;
-      margin-bottom: 15px;
+      font-size: 18px;
+      margin-bottom: 10px;
       word-break: break-all;
     }
 
-    /* New CSS for Media Preview */
     .media-preview {
-      margin: 20px 0 30px 0;
-      padding: 20px;
-      background: #f8f9fa;
+      margin: 20px 0;
+      padding: 15px;
+      background: #00000005;
       border-radius: 10px;
       display: flex;
       justify-content: center;
       align-items: center;
+      overflow: hidden;
     }
 
-    .media-preview img, 
-    .media-preview video {
+    .media-preview img {
       max-width: 100%;
-      max-height: 500px; /* Taake bohot bari image screen se bahar na jaye */
+      max-height: 550px;
       border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
       object-fit: contain;
     }
 
+    .media-preview video {
+      width: 100%;
+      max-height: 550px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+      background: #000;
+    }
+
     .file-icon {
-      font-size: 80px;
+      font-size: 70px;
       text-align: center;
       margin: 20px 0;
     }
 
     .file-details {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 20px;
-      margin-bottom: 30px;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 15px;
+      margin-bottom: 25px;
     }
 
     .detail-item {
       background: #f8f9fa;
-      padding: 15px;
+      padding: 12px 16px;
       border-radius: 8px;
     }
 
     .detail-label {
-      font-size: 12px;
+      font-size: 11px;
       color: #666;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      margin-bottom: 5px;
+      margin-bottom: 4px;
     }
 
     .detail-value {
-      font-size: 16px;
+      font-size: 15px;
       color: #333;
       font-weight: 600;
     }
@@ -151,29 +162,30 @@
 
     .download-section {
       text-align: center;
-      padding: 30px;
+      padding: 25px;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border-radius: 8px;
+      border-radius: 10px;
       color: white;
     }
 
     .download-section h3 {
-      margin-bottom: 15px;
-      font-size: 20px;
+      margin-bottom: 10px;
+      font-size: 18px;
     }
 
     .download-section p {
-      margin-bottom: 20px;
+      margin-bottom: 15px;
       opacity: 0.9;
+      font-size: 14px;
     }
 
     .btn-download-large {
-      padding: 15px 40px;
+      padding: 12px 30px;
       background: white;
       color: #667eea;
       border: none;
       border-radius: 8px;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 600;
       cursor: pointer;
       text-decoration: none;
@@ -185,18 +197,21 @@
       transform: translateY(-2px);
     }
 
-    @media (max-width: 768px) {
-      .nav-links {
-        flex-direction: column;
-        gap: 8px;
+    @media (max-width: 600px) {
+      .navbar {
+        padding: 12px 15px;
       }
-
-      .file-details {
-        grid-template-columns: 1fr;
+      .navbar h1 {
+        font-size: 16px;
       }
-      
+      .file-info {
+        padding: 15px;
+      }
       .media-preview {
-        padding: 10px;
+        padding: 5px;
+      }
+      .btn-download-large {
+        width: 100%;
       }
     }
   </style>
@@ -205,8 +220,8 @@
   <nav class="navbar">
     <h1>File Details</h1>
     <div class="nav-links">
-      <a href="/dashboard" class="btn btn-back">Back to Dashboard</a>
-      <a href="<%= file.path %>" class="btn btn-download" download>Quick Download</a>
+      <a href="/dashboard" class="btn btn-back">⬅ Back</a>
+      <a href="<%= file.downloadPath || file.path %>" class="btn btn-download" download>⬇ Download</a>
     </div>
   </nav>
 
@@ -217,22 +232,21 @@
         <h2><%= file.name %></h2>
       </div>
 
-      <!-- EJS LOGIC FOR MEDIA PREVIEW -->
+      <!-- MEDIA PREVIEW -->
       <% if (file.category === 'images') { %>
         <div class="media-preview">
-          <img src="<%= file.path %>" alt="<%= file.name %>" />
+          <img src="<%= file.path %>" alt="<%= file.name %>" loading="eager" />
         </div>
       <% } else if (file.category === 'videos') { %>
         <div class="media-preview">
-          <video controls preload="metadata">
+          <video controls preload="metadata" playsinline>
             <source src="<%= file.path %>">
-            Your browser does not support the video tag.
+            Your browser does not support video playback.
           </video>
         </div>
       <% } else { %>
         <div class="file-icon">📄</div>
       <% } %>
-      <!-- END PREVIEW LOGIC -->
 
       <div class="file-details">
         <div class="detail-item">
@@ -252,8 +266,8 @@
 
       <div class="download-section">
         <h3>Ready to Download</h3>
-        <p>Click the button below to download this file to your device</p>
-        <a href="<%= file.path %>" class="btn-download-large" download>Download File</a>
+        <p>Click below to download this file to your device</p>
+        <a href="<%= file.downloadPath || file.path %>" class="btn-download-large" download>Download File</a>
       </div>
     </div>
   </div>
