@@ -53,6 +53,7 @@
       --modal-bg: #ffffff;
       --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
       --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
       --radius-sm: 6px;
       --radius: 10px;
       --radius-lg: 16px;
@@ -90,6 +91,7 @@
       --modal-bg: #151c2c;
       --shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
       --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 12px 24px rgba(0, 0, 0, 0.5);
     }
 
     * {
@@ -431,7 +433,7 @@
       color: white;
     }
 
-    /* CONTROLS TOOLBAR (Search, Limit, Stats) */
+    /* CONTROLS TOOLBAR (Search, Limit, View Mode, Stats) */
     .toolbar {
       display: flex;
       justify-content: space-between;
@@ -446,7 +448,7 @@
       align-items: center;
       gap: 8px;
       flex: 1;
-      max-width: 460px;
+      max-width: 420px;
     }
 
     .search-input-wrap {
@@ -519,14 +521,54 @@
     .toolbar-right {
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 12px;
       flex-wrap: wrap;
+    }
+
+    /* VIEW SWITCHER BUTTONS (Gallery vs Table) */
+    .view-mode-toggle {
+      display: inline-flex;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 3px;
+      gap: 3px;
+    }
+
+    .view-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .view-toggle-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .view-toggle-btn.active {
+      background: var(--bg-card);
+      color: var(--primary);
+      box-shadow: var(--shadow-sm);
+    }
+
+    html.dark .view-toggle-btn.active {
+      background: #1e293b;
+      color: var(--primary);
     }
 
     .limit-selector {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       font-size: 13px;
       font-weight: 600;
       color: var(--text-secondary);
@@ -664,6 +706,134 @@
       accent-color: var(--primary);
       cursor: pointer;
       border-radius: 4px;
+    }
+
+    /* GALLERY GRID VIEW */
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 18px;
+      margin-top: 10px;
+    }
+
+    .gallery-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-sm);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      position: relative;
+    }
+
+    .gallery-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-md);
+      border-color: #818cf8;
+    }
+
+    .gallery-card.selected {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.35);
+      background: var(--table-selected-bg);
+    }
+
+    .gallery-media {
+      width: 100%;
+      height: 190px;
+      background: var(--table-header-bg);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .gallery-media img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.35s ease;
+    }
+
+    .gallery-card:hover .gallery-media img {
+      transform: scale(1.05);
+    }
+
+    .gallery-media video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      background: #000;
+    }
+
+    .gallery-icon-file {
+      font-size: 54px;
+    }
+
+    .gallery-overlay-top {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 5;
+    }
+
+    .gallery-checkbox-badge {
+      background: rgba(255, 255, 255, 0.9);
+      padding: 5px;
+      border-radius: 6px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    html.dark .gallery-checkbox-badge {
+      background: rgba(21, 28, 44, 0.9);
+    }
+
+    .gallery-content {
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 1;
+    }
+
+    .gallery-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .gallery-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .gallery-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .gallery-actions .action-btn {
+      flex: 1;
+      padding: 7px 0;
     }
 
     /* DESKTOP TABLE VIEW */
@@ -825,114 +995,6 @@
     .btn-delete:hover {
       background: var(--danger);
       color: white;
-    }
-
-    /* MOBILE CARDS VIEW */
-    .mobile-cards-grid {
-      display: none;
-      grid-template-columns: 1fr;
-      gap: 16px;
-    }
-
-    .file-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: var(--shadow-sm);
-      display: flex;
-      flex-direction: column;
-      position: relative;
-      transition: all 0.2s ease;
-    }
-
-    .file-card.selected {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.35);
-      background: var(--table-selected-bg);
-    }
-
-    .card-preview {
-      width: 100%;
-      height: 190px;
-      background: var(--table-header-bg);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-      position: relative;
-    }
-
-    .card-preview img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    .card-preview video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      background: #000;
-    }
-
-    .card-checkbox-overlay {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      z-index: 10;
-      background: rgba(255, 255, 255, 0.85);
-      padding: 6px;
-      border-radius: 6px;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    html.dark .card-checkbox-overlay {
-      background: rgba(21, 28, 44, 0.85);
-    }
-
-    .card-checkbox-overlay input {
-      width: 20px;
-      height: 20px;
-    }
-
-    .card-content {
-      padding: 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .card-title {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--text-primary);
-      word-break: break-all;
-    }
-
-    .card-meta {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      font-size: 12px;
-      color: var(--text-secondary);
-    }
-
-    .card-actions {
-      display: flex;
-      gap: 8px;
-      margin-top: 8px;
-      padding-top: 10px;
-      border-top: 1px solid var(--border-subtle);
-    }
-
-    .card-actions .action-btn {
-      flex: 1;
-      padding: 8px 0;
     }
 
     /* PAGINATION BAR */
@@ -1170,12 +1232,6 @@
       .toolbar-right {
         justify-content: space-between;
       }
-      .desktop-table-container {
-        display: none;
-      }
-      .mobile-cards-grid {
-        display: grid;
-      }
       .pagination-bar {
         flex-direction: column;
         align-items: center;
@@ -1183,6 +1239,13 @@
       }
       .theme-text {
         display: none;
+      }
+      .gallery-grid {
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 12px;
+      }
+      .gallery-media {
+        height: 150px;
       }
     }
   </style>
@@ -1290,7 +1353,7 @@
         </div>
       </div>
 
-      <!-- TOOLBAR: SEARCH & LIMIT & STATS -->
+      <!-- TOOLBAR: SEARCH & LIMIT & VIEW SWITCHER & STATS -->
       <div class="toolbar">
         <form action="/dashboard" method="GET" class="search-form">
           <input type="hidden" name="category" value="<%= activeCategory %>">
@@ -1306,12 +1369,22 @@
         </form>
 
         <div class="toolbar-right">
+          <!-- VIEW MODE SWITCHER (Gallery vs Table) -->
+          <div class="view-mode-toggle" id="viewModeToggle">
+            <button type="button" class="view-toggle-btn active" id="btnViewGallery" onclick="setViewMode('gallery')" title="Gallery Grid View">
+              <span>🖼️</span> <span>Gallery</span>
+            </button>
+            <button type="button" class="view-toggle-btn" id="btnViewTable" onclick="setViewMode('table')" title="Table List View">
+              <span>📋</span> <span>Table</span>
+            </button>
+          </div>
+
           <!-- LIMIT SELECTOR (Default 30, with 15, 30, 50, 100, 200 options) -->
           <div class="limit-selector">
-            <label for="limitSelect">Show per page:</label>
+            <label for="limitSelect">Per page:</label>
             <select id="limitSelect" class="limit-select" onchange="changeLimit(this.value)">
               <option value="15" <%= limitVal === 15 ? 'selected' : '' %>>15</option>
-              <option value="30" <%= limitVal === 30 ? 'selected' : '' %>>30 (Default)</option>
+              <option value="30" <%= limitVal === 30 ? 'selected' : '' %>>30</option>
               <option value="50" <%= limitVal === 50 ? 'selected' : '' %>>50</option>
               <option value="100" <%= limitVal === 100 ? 'selected' : '' %>>100</option>
               <option value="200" <%= limitVal === 200 ? 'selected' : '' %>>200</option>
@@ -1319,7 +1392,7 @@
           </div>
 
           <div class="files-count-badge">
-            Total: <strong><%= totalFiles %></strong> <%= totalFiles === 1 ? 'file' : 'files' %>
+            Total: <strong><%= totalFiles %></strong>
           </div>
         </div>
       </div>
@@ -1343,8 +1416,56 @@
 
       <% if (files.length > 0) { %>
 
-        <!-- DESKTOP TABLE VIEW -->
-        <div class="desktop-table-container">
+        <!-- 1. GALLERY GRID VIEW (DEFAULT) -->
+        <div class="gallery-grid" id="galleryGridContainer">
+          <% files.forEach(file => { %>
+            <div class="gallery-card" id="gallery-card-<%= encodeURIComponent(file.name) %>">
+              <div class="gallery-media">
+                <div class="gallery-overlay-top">
+                  <div class="gallery-checkbox-badge">
+                    <input type="checkbox" 
+                           class="custom-checkbox file-item-checkbox" 
+                           data-category="<%= file.category %>" 
+                           data-filename="<%= file.name %>"
+                           onchange="handleCheckboxChange(this)"
+                           title="Select file">
+                  </div>
+                  <span class="category-badge category-<%= file.category %>">
+                    <%= file.category %>
+                  </span>
+                </div>
+
+                <% if (file.category === 'images') { %>
+                  <img src="/uploads/<%= file.category %>/<%= encodeURIComponent(file.name) %>" alt="<%= file.name %>" loading="lazy">
+                <% } else if (file.category === 'videos') { %>
+                  <video src="/uploads/<%= file.category %>/<%= encodeURIComponent(file.name) %>" controls preload="metadata" playsinline></video>
+                <% } else if (file.category === 'archives') { %>
+                  <div class="gallery-icon-file">📦</div>
+                <% } else if (file.category === 'documents') { %>
+                  <div class="gallery-icon-file">📄</div>
+                <% } else { %>
+                  <div class="gallery-icon-file">📁</div>
+                <% } %>
+              </div>
+
+              <div class="gallery-content">
+                <div class="gallery-title" title="<%= file.name %>"><%= file.name %></div>
+                <div class="gallery-meta">
+                  <span><strong><%= formatSize(file.size) %></strong></span>
+                  <span style="font-size: 11px;"><%= new Date(file.uploadDate).toLocaleDateString() %></span>
+                </div>
+                <div class="gallery-actions">
+                  <a href="/view/<%= file.category %>/<%= encodeURIComponent(file.name) %>" class="action-btn btn-view" title="View details">View</a>
+                  <a href="/download/<%= file.category %>/<%= encodeURIComponent(file.name) %>" class="action-btn btn-download" download title="Download">Download</a>
+                  <button type="button" class="action-btn btn-delete" onclick="promptDeleteSingle('<%= file.category %>', '<%= file.name %>')" title="Delete">Delete</button>
+                </div>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+
+        <!-- 2. DESKTOP TABLE VIEW -->
+        <div class="desktop-table-container" id="desktopTableContainer" style="display: none;">
           <table class="files-table">
             <thead>
               <tr>
@@ -1410,49 +1531,6 @@
               <% }) %>
             </tbody>
           </table>
-        </div>
-
-        <!-- MOBILE CARDS VIEW -->
-        <div class="mobile-cards-grid">
-          <% files.forEach(file => { %>
-            <div class="file-card" id="card-<%= encodeURIComponent(file.name) %>">
-              <div class="card-preview">
-                <div class="card-checkbox-overlay">
-                  <input type="checkbox" 
-                         class="custom-checkbox file-item-checkbox mobile-card-checkbox" 
-                         data-category="<%= file.category %>" 
-                         data-filename="<%= file.name %>"
-                         onchange="handleCheckboxChange(this)">
-                </div>
-                <% if (file.category === 'images') { %>
-                  <img src="/uploads/<%= file.category %>/<%= encodeURIComponent(file.name) %>" alt="img" loading="lazy">
-                <% } else if (file.category === 'videos') { %>
-                  <video src="/uploads/<%= file.category %>/<%= encodeURIComponent(file.name) %>" controls preload="metadata" playsinline></video>
-                <% } else if (file.category === 'archives') { %>
-                  <div style="font-size: 48px;">📦</div>
-                <% } else if (file.category === 'documents') { %>
-                  <div style="font-size: 48px;">📄</div>
-                <% } else { %>
-                  <div style="font-size: 48px;">📁</div>
-                <% } %>
-              </div>
-              <div class="card-content">
-                <div class="card-title"><%= file.name %></div>
-                <div class="card-meta">
-                  <span class="category-badge category-<%= file.category %>"><%= file.category %></span>
-                  <span><strong><%= formatSize(file.size) %></strong></span>
-                </div>
-                <div style="font-size: 11px; color: var(--text-muted);">
-                  <%= new Date(file.uploadDate).toLocaleDateString() %> <%= new Date(file.uploadDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) %>
-                </div>
-                <div class="card-actions">
-                  <a href="/view/<%= file.category %>/<%= encodeURIComponent(file.name) %>" class="action-btn btn-view">View</a>
-                  <a href="/download/<%= file.category %>/<%= encodeURIComponent(file.name) %>" class="action-btn btn-download" download>Download</a>
-                  <button type="button" class="action-btn btn-delete" onclick="promptDeleteSingle('<%= file.category %>', '<%= file.name %>')">Delete</button>
-                </div>
-              </div>
-            </div>
-          <% }) %>
         </div>
 
         <!-- PAGINATION BAR -->
@@ -1555,6 +1633,30 @@
   <div class="toast-container" id="toastContainer"></div>
 
   <script>
+    // VIEW MODE (GALLERY VS TABLE) MANAGEMENT
+    function setViewMode(mode) {
+      localStorage.setItem('viewMode', mode);
+      const galleryGrid = document.getElementById('galleryGridContainer');
+      const tableContainer = document.getElementById('desktopTableContainer');
+      const btnGallery = document.getElementById('btnViewGallery');
+      const btnTable = document.getElementById('btnViewTable');
+
+      if (!galleryGrid || !tableContainer) return;
+
+      if (mode === 'table') {
+        galleryGrid.style.display = 'none';
+        tableContainer.style.display = 'block';
+        if (btnTable) btnTable.classList.add('active');
+        if (btnGallery) btnGallery.classList.remove('active');
+      } else {
+        // default: gallery
+        galleryGrid.style.display = 'grid';
+        tableContainer.style.display = 'none';
+        if (btnGallery) btnGallery.classList.add('active');
+        if (btnTable) btnTable.classList.remove('active');
+      }
+    }
+
     // THEME (DARK / LIGHT) MANAGEMENT
     function toggleTheme() {
       const isDark = document.documentElement.classList.toggle('dark');
@@ -1572,6 +1674,10 @@
     document.addEventListener('DOMContentLoaded', () => {
       const isDark = document.documentElement.classList.contains('dark');
       updateThemeButton(isDark);
+
+      // Restore saved view mode (default to gallery)
+      const savedView = localStorage.getItem('viewMode') || 'gallery';
+      setViewMode(savedView);
     });
 
     // State management for multi-selection
@@ -1680,7 +1786,7 @@
       const filename = cb.getAttribute('data-filename');
       const isChecked = cb.checked;
 
-      // Sync checkboxes if duplicate on page (desktop vs mobile)
+      // Sync checkboxes across all views (Gallery & Table)
       document.querySelectorAll(`.file-item-checkbox[data-filename="${CSS.escape(filename)}"]`).forEach(c => {
         c.checked = isChecked;
       });
@@ -1688,9 +1794,9 @@
       // Highlight visual element
       const safeId = encodeURIComponent(filename);
       const row = document.getElementById(`row-${safeId}`);
-      const card = document.getElementById(`card-${safeId}`);
+      const galleryCard = document.getElementById(`gallery-card-${safeId}`);
       if (row) row.classList.toggle('selected', isChecked);
-      if (card) card.classList.toggle('selected', isChecked);
+      if (galleryCard) galleryCard.classList.toggle('selected', isChecked);
 
       if (isChecked) {
         if (!selectedFiles.some(f => f.filename === filename && f.category === category)) {
@@ -1711,9 +1817,9 @@
         const filename = cb.getAttribute('data-filename');
         const safeId = encodeURIComponent(filename);
         const row = document.getElementById(`row-${safeId}`);
-        const card = document.getElementById(`card-${safeId}`);
+        const galleryCard = document.getElementById(`gallery-card-${safeId}`);
         if (row) row.classList.toggle('selected', shouldSelect);
-        if (card) card.classList.toggle('selected', shouldSelect);
+        if (galleryCard) galleryCard.classList.toggle('selected', shouldSelect);
       });
 
       const headerCheckbox = document.getElementById('selectAllHeader');
@@ -1745,8 +1851,8 @@
       const btnCount = document.getElementById('bulkDeleteBtnCount');
       const headerCb = document.getElementById('selectAllHeader');
 
-      const totalItemsOnPage = document.querySelectorAll('.files-table tbody tr').length || 
-                               document.querySelectorAll('.mobile-cards-grid .file-card').length;
+      const totalItemsOnPage = document.querySelectorAll('.gallery-card').length || 
+                               document.querySelectorAll('.files-table tbody tr').length;
 
       if (selectedFiles.length > 0) {
         bulkBar.style.display = 'flex';
