@@ -5,13 +5,15 @@ A secure file upload system with authentication, organized file storage, and pag
 ## Features
 
 - ✅ User authentication (username: numan, password: numan114)
-- ✅ File upload with drag & drop support
-- ✅ Large file support (up to 500MB)
+- ✅ File upload with drag & drop support (up to 500MB)
+- ✅ Multiple file selection & bulk deletion permanently from server
+- ✅ Category filters with count badges (Images, Videos, Documents, Archives, Others)
+- ✅ 30 files default pagination with customizable items-per-page limit (15, 30, 50, 100, 200)
+- ✅ Search files by name with real-time feedback
 - ✅ Automatic file categorization by type
 - ✅ Organized folder structure (images, videos, archives, documents, others)
-- ✅ Pagination for file listing
 - ✅ View and download files
-- ✅ Responsive design
+- ✅ Responsive design for desktop, tablet, and mobile browsers
 
 ## Installation Steps
 

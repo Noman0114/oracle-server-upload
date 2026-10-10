@@ -131,6 +131,25 @@ function getAllFiles() {
   return files.sort((a, b) => b.uploadDate - a.uploadDate);
 }
 
+// Helper: Safely delete single file from disk
+function deleteFileOnServer(category, filename) {
+  if (!category || !filename || !uploadDirs[category]) {
+    return { success: false, message: 'Invalid category or filename' };
+  }
+  const safeFilename = path.basename(filename);
+  const filePath = path.join(uploadDirs[category], safeFilename);
+  if (!fs.existsSync(filePath)) {
+    return { success: false, message: 'File not found' };
+  }
+  try {
+    fs.unlinkSync(filePath);
+    return { success: true, message: 'File deleted successfully' };
+  } catch (error) {
+    console.error(`Error deleting file ${filePath}:`, error);
+    return { success: false, message: 'Error deleting file from disk' };
+  }
+}
+
 // ==========================================
 // UNAUTHENTICATED MOBILE API ENDPOINTS
 // ==========================================
@@ -233,23 +252,46 @@ app.post('/api/check-sync', (req, res) => {
  */
 app.delete('/api/files/:category/:filename', (req, res) => {
   const { category, filename } = req.params;
-  const targetCategoryDir = uploadDirs[category];
-
-  if (!targetCategoryDir) {
-    return res.status(400).json({ success: false, message: 'Invalid category' });
-  }
-
-  const filePath = path.join(targetCategoryDir, filename);
-  if (fs.existsSync(filePath)) {
-    try {
-      fs.unlinkSync(filePath);
-      return res.json({ success: true, message: 'File deleted successfully' });
-    } catch (error) {
-      return res.status(500).json({ success: false, message: 'Error deleting file' });
-    }
+  const result = deleteFileOnServer(category, filename);
+  if (result.success) {
+    return res.json({ success: true, message: result.message });
   } else {
-    return res.status(404).json({ success: false, message: 'File not found' });
+    const statusCode = result.message === 'File not found' ? 404 : 400;
+    return res.status(statusCode).json({ success: false, message: result.message });
   }
+});
+
+/**
+ * @route POST /api/delete-multiple
+ * @desc Bulk delete multiple files via API
+ * @body { files: [{ category: 'images', filename: '...' }] }
+ */
+app.post('/api/delete-multiple', (req, res) => {
+  const { files } = req.body;
+  if (!Array.isArray(files) || files.length === 0) {
+    return res.status(400).json({ success: false, message: 'No files provided for deletion' });
+  }
+
+  let deletedCount = 0;
+  let failedCount = 0;
+
+  files.forEach(item => {
+    const category = item.category;
+    const filename = item.filename || item.name;
+    const result = deleteFileOnServer(category, filename);
+    if (result.success) {
+      deletedCount++;
+    } else {
+      failedCount++;
+    }
+  });
+
+  res.json({
+    success: true,
+    message: `${deletedCount} file(s) deleted successfully` + (failedCount > 0 ? ` (${failedCount} failed)` : ''),
+    deletedCount,
+    failedCount
+  });
 });
 
 // ==========================================
@@ -275,28 +317,61 @@ app.post('/login', (req, res) => {
 });
 
 app.get('/dashboard', isAuthenticated, (req, res) => {
-  const page = parseInt(req.query.page) || 1;
+  const page = Math.max(1, parseInt(req.query.page) || 1);
   const search = (req.query.search || '').trim();
-  const perPage = 10;
+  const perPage = Math.max(1, parseInt(req.query.limit) || 30); // Default pagination limit is 30
+  const category = (req.query.category || 'all').trim().toLowerCase();
 
   let allFiles = getAllFiles();
+
+  // Search filter
+  let searchedFiles = allFiles;
   if (search) {
     const query = search.toLowerCase();
-    allFiles = allFiles.filter(f => f.name.toLowerCase().includes(query));
+    searchedFiles = allFiles.filter(f => f.name.toLowerCase().includes(query));
   }
 
-  const totalFiles = allFiles.length;
+  // Pre-calculate counts for all categories based on searched files
+  const categoryCounts = {
+    all: searchedFiles.length,
+    images: 0,
+    videos: 0,
+    documents: 0,
+    archives: 0,
+    others: 0
+  };
+
+  searchedFiles.forEach(file => {
+    if (categoryCounts[file.category] !== undefined) {
+      categoryCounts[file.category]++;
+    } else {
+      categoryCounts.others = (categoryCounts.others || 0) + 1;
+    }
+  });
+
+  // Category filter
+  let filteredFiles = searchedFiles;
+  if (category && category !== 'all' && uploadDirs[category]) {
+    filteredFiles = searchedFiles.filter(f => f.category === category);
+  }
+
+  const totalFiles = filteredFiles.length;
   const totalPages = Math.ceil(totalFiles / perPage) || 1;
-  const startIndex = (page - 1) * perPage;
+  const validPage = Math.min(page, totalPages);
+  const startIndex = (validPage - 1) * perPage;
   const endIndex = startIndex + perPage;
-  const paginatedFiles = allFiles.slice(startIndex, endIndex);
+  const paginatedFiles = filteredFiles.slice(startIndex, endIndex);
 
   res.render('dashboard', {
     files: paginatedFiles,
-    currentPage: page,
+    currentPage: validPage,
     totalPages: totalPages,
     totalFiles: totalFiles,
-    search: search
+    totalAllFiles: allFiles.length,
+    search: search,
+    perPage: perPage,
+    currentCategory: category,
+    categoryCounts: categoryCounts
   });
 });
 
@@ -309,7 +384,13 @@ app.post('/upload', isAuthenticated, upload.single('file'), (req, res) => {
 
 app.get('/download/:category/:filename', isAuthenticated, (req, res) => {
   const { category, filename } = req.params;
-  const filePath = path.join(uploadDirs[category], filename);
+  const targetDir = uploadDirs[category];
+  if (!targetDir) {
+    return res.status(400).send('Invalid category');
+  }
+
+  const safeFilename = path.basename(filename);
+  const filePath = path.join(targetDir, safeFilename);
 
   if (fs.existsSync(filePath)) {
     res.download(filePath);
@@ -323,7 +404,8 @@ app.get('/view/:category/:filename', isAuthenticated, (req, res) => {
   const targetDir = uploadDirs[category];
 
   if (targetDir) {
-    const filePath = path.join(targetDir, filename);
+    const safeFilename = path.basename(filename);
+    const filePath = path.join(targetDir, safeFilename);
     if (fs.existsSync(filePath)) {
       const fileInfo = {
         name: filename,
@@ -338,20 +420,45 @@ app.get('/view/:category/:filename', isAuthenticated, (req, res) => {
   res.status(404).send('File not found');
 });
 
+// Single file deletion
 app.delete('/delete/:category/:filename', isAuthenticated, (req, res) => {
   const { category, filename } = req.params;
-  const filePath = path.join(uploadDirs[category], filename);
-
-  if (fs.existsSync(filePath)) {
-    try {
-      fs.unlinkSync(filePath);
-      res.json({ success: true, message: 'File deleted successfully' });
-    } catch (error) {
-      res.status(500).json({ success: false, message: 'Error deleting file' });
-    }
+  const result = deleteFileOnServer(category, filename);
+  if (result.success) {
+    res.json({ success: true, message: result.message });
   } else {
-    res.status(404).json({ success: false, message: 'File not found' });
+    const statusCode = result.message === 'File not found' ? 404 : 400;
+    res.status(statusCode).json({ success: false, message: result.message });
   }
+});
+
+// Multiple file deletion (Bulk delete from server)
+app.post('/delete-multiple', isAuthenticated, (req, res) => {
+  const { files } = req.body;
+  if (!Array.isArray(files) || files.length === 0) {
+    return res.status(400).json({ success: false, message: 'No files provided for deletion' });
+  }
+
+  let deletedCount = 0;
+  let failedCount = 0;
+
+  files.forEach(item => {
+    const category = item.category;
+    const filename = item.filename || item.name;
+    const result = deleteFileOnServer(category, filename);
+    if (result.success) {
+      deletedCount++;
+    } else {
+      failedCount++;
+    }
+  });
+
+  res.json({
+    success: true,
+    message: `${deletedCount} file(s) deleted permanently from server` + (failedCount > 0 ? ` (${failedCount} failed)` : ''),
+    deletedCount,
+    failedCount
+  });
 });
 
 app.get('/logout', (req, res) => {
