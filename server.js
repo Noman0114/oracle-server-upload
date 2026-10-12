@@ -407,14 +407,20 @@ app.get('/view/:category/:filename', isAuthenticated, (req, res) => {
     const safeFilename = path.basename(filename);
     const filePath = path.join(targetDir, safeFilename);
     if (fs.existsSync(filePath)) {
+      const stats = fs.statSync(filePath);
       const fileInfo = {
         name: filename,
         category: category,
-        size: fs.statSync(filePath).size,
+        size: stats.size,
+        uploadDate: stats.mtime,
         path: `/uploads/${category}/${encodeURIComponent(filename)}`,
         downloadPath: `/download/${category}/${encodeURIComponent(filename)}`
       };
-      return res.render('view', { file: fileInfo });
+      
+      const allFiles = getAllFiles();
+      const relatedFiles = allFiles.filter(f => !(f.category === category && f.name === filename)).slice(0, 12);
+
+      return res.render('view', { file: fileInfo, relatedFiles: relatedFiles });
     }
   }
   res.status(404).send('File not found');
