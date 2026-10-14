@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const multer = require('multer');
@@ -7,6 +8,9 @@ const bodyParser = require('body-parser');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'numan';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'numan114';
+const SESSION_SECRET = process.env.SESSION_SECRET || 'numan-upload-secret-key';
 
 // Create upload directories
 const uploadDirs = {
@@ -74,7 +78,7 @@ app.use('/api', (req, res, next) => {
 });
 
 app.use(session({
-  secret: 'numan-upload-secret-key',
+  secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: { maxAge: 24 * 60 * 60 * 1000 } // 24 hours
@@ -189,36 +193,148 @@ app.post('/api/upload', upload.any(), (req, res) => {
 
 /**
  * @route GET /api/files
- * @desc Get list of uploaded files/photos (JSON format for mobile app)
- * @query category (optional), limit (optional), page (optional)
+ * @desc Get list of uploaded files/photos (JSON format for mobile app & Next.js SSR)
+ * @query category (optional), limit (optional), page (optional), search (optional)
  */
 app.get('/api/files', (req, res) => {
-  let files = getAllFiles();
-  const { category, limit, page } = req.query;
+  const allFiles = getAllFiles();
+  const { category, limit, page, search } = req.query;
+  const searchQuery = (search || '').trim().toLowerCase();
+  const cat = (category || 'all').trim().toLowerCase();
 
-  if (category) {
-    files = files.filter(f => f.category === category);
+  // 1. Search filter
+  let searchedFiles = allFiles;
+  if (searchQuery) {
+    searchedFiles = allFiles.filter(f => f.name.toLowerCase().includes(searchQuery));
   }
 
-  if (limit) {
-    const pageNum = parseInt(page) || 1;
-    const limitNum = parseInt(limit) || 20;
-    const startIndex = (pageNum - 1) * limitNum;
-    const paginated = files.slice(startIndex, startIndex + limitNum);
+  // 2. Pre-calculate category counts based on search results
+  const categoryCounts = {
+    all: searchedFiles.length,
+    images: 0,
+    videos: 0,
+    documents: 0,
+    archives: 0,
+    others: 0
+  };
+
+  searchedFiles.forEach(file => {
+    if (categoryCounts[file.category] !== undefined) {
+      categoryCounts[file.category]++;
+    } else {
+      categoryCounts.others = (categoryCounts.others || 0) + 1;
+    }
+  });
+
+  // 3. Category filter
+  let filteredFiles = searchedFiles;
+  if (cat && cat !== 'all' && uploadDirs[cat]) {
+    filteredFiles = searchedFiles.filter(f => f.category === cat);
+  }
+
+  // 4. Pagination
+  const totalFiles = filteredFiles.length;
+  if (limit !== undefined || page !== undefined) {
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.max(1, parseInt(limit) || 30);
+    const totalPages = Math.ceil(totalFiles / limitNum) || 1;
+    const validPage = Math.min(pageNum, totalPages);
+    const startIndex = (validPage - 1) * limitNum;
+    const paginated = filteredFiles.slice(startIndex, startIndex + limitNum);
+
     return res.json({
       success: true,
-      total: files.length,
-      page: pageNum,
+      total: totalFiles,
+      totalAllFiles: allFiles.length,
+      page: validPage,
       limit: limitNum,
+      totalPages: totalPages,
+      currentCategory: cat,
+      search: search || '',
+      categoryCounts: categoryCounts,
       files: paginated
     });
   }
 
   res.json({
     success: true,
-    total: files.length,
-    files: files
+    total: totalFiles,
+    totalAllFiles: allFiles.length,
+    currentCategory: cat,
+    categoryCounts: categoryCounts,
+    files: filteredFiles
   });
+});
+
+/**
+ * @route GET /api/file/:category/:filename
+ * @desc Get single file details and related files for Next.js watch/view page
+ */
+app.get('/api/file/:category/:filename', (req, res) => {
+  const { category, filename } = req.params;
+  const targetDir = uploadDirs[category];
+
+  if (targetDir) {
+    const safeFilename = path.basename(filename);
+    const filePath = path.join(targetDir, safeFilename);
+    if (fs.existsSync(filePath)) {
+      const stats = fs.statSync(filePath);
+      const fileInfo = {
+        name: safeFilename,
+        category: category,
+        size: stats.size,
+        uploadDate: stats.mtime,
+        url: `/uploads/${category}/${encodeURIComponent(safeFilename)}`,
+        path: `/uploads/${category}/${encodeURIComponent(safeFilename)}`,
+        downloadPath: `/download/${category}/${encodeURIComponent(safeFilename)}`
+      };
+
+      const allFiles = getAllFiles();
+      const relatedFiles = allFiles
+        .filter(f => !(f.category === category && f.name === safeFilename))
+        .slice(0, 15);
+
+      return res.json({
+        success: true,
+        file: fileInfo,
+        relatedFiles: relatedFiles
+      });
+    }
+  }
+  res.status(404).json({ success: false, message: 'File not found' });
+});
+
+/**
+ * @route POST /api/login
+ * @desc API login verification for Next.js Server Action
+ */
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
+  if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+    return res.json({ success: true, message: 'Authenticated successfully', user: { username: ADMIN_USERNAME } });
+  }
+  res.status(401).json({ success: false, message: 'Invalid username or password' });
+});
+
+/**
+ * @route GET /api/download/:category/:filename
+ * @desc Download file endpoint
+ */
+app.get('/api/download/:category/:filename', (req, res) => {
+  const { category, filename } = req.params;
+  const targetDir = uploadDirs[category];
+  if (!targetDir) {
+    return res.status(400).send('Invalid category');
+  }
+
+  const safeFilename = path.basename(filename);
+  const filePath = path.join(targetDir, safeFilename);
+
+  if (fs.existsSync(filePath)) {
+    res.download(filePath);
+  } else {
+    res.status(404).send('File not found');
+  }
 });
 
 /**
@@ -308,7 +424,7 @@ app.get('/', (req, res) => {
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
 
-  if (username === 'numan' && password === 'numan114') {
+  if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
     req.session.isAuthenticated = true;
     res.redirect('/dashboard');
   } else {
