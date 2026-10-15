@@ -1,4 +1,8 @@
-require('dotenv').config();
+try {
+  require('dotenv').config();
+} catch (e) {
+  // Dotenv optional fallback
+}
 const express = require('express');
 const session = require('express-session');
 const multer = require('multer');
@@ -59,15 +63,8 @@ const upload = multer({
   }
 });
 
-// Middleware
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
-
-// Serve uploaded files statically so mobile apps can access/display photos directly
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-// CORS middleware for API routes to allow requests from mobile apps / web clients
-app.use('/api', (req, res, next) => {
+// Global CORS middleware - allows Next.js frontend (localhost:3000 / Vercel) and mobile apps
+app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
@@ -76,6 +73,13 @@ app.use('/api', (req, res, next) => {
   }
   next();
 });
+
+// Body parsing with higher limits
+app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
+app.use(bodyParser.json({ limit: '50mb' }));
+
+// Serve uploaded files statically with CORS and byte range support
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use(session({
   secret: SESSION_SECRET,
@@ -99,7 +103,7 @@ function getFileCategory(filename) {
   const ext = path.extname(filename).toLowerCase();
   if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.heic', '.heif'].includes(ext)) {
     return 'images';
-  } else if (['.mp4', '.avi', '.mov', '.wmv', '.flv', '.mkv', '.webm', '.3gp'].includes(ext)) {
+  } else if (['.mp4', '.avi', '.mov', '.wmv', '.flv', '.mkv', '.webm', '.3gp', '.m4v', '.ts'].includes(ext)) {
     return 'videos';
   } else if (['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2'].includes(ext)) {
     return 'archives';
@@ -109,8 +113,40 @@ function getFileCategory(filename) {
   return 'others';
 }
 
+// Auto-migrate any loose files sitting in the root of uploads/ into categorized folders
+function autoMigrateRootUploads() {
+  const uploadsRoot = path.join(__dirname, 'uploads');
+  if (!fs.existsSync(uploadsRoot)) return;
+
+  try {
+    const entries = fs.readdirSync(uploadsRoot, { withFileTypes: true });
+    entries.forEach(entry => {
+      if (entry.isFile()) {
+        const cat = getFileCategory(entry.name);
+        const targetDir = uploadDirs[cat] || uploadDirs.others;
+        if (!fs.existsSync(targetDir)) {
+          fs.mkdirSync(targetDir, { recursive: true });
+        }
+        const srcPath = path.join(uploadsRoot, entry.name);
+        const destPath = path.join(targetDir, entry.name);
+        try {
+          if (!fs.existsSync(destPath)) {
+            fs.renameSync(srcPath, destPath);
+          }
+        } catch (err) {
+          console.error('Error migrating legacy file:', entry.name, err);
+        }
+      }
+    });
+  } catch (err) {
+    console.error('Error scanning uploads root directory:', err);
+  }
+}
+
 // Get all files with metadata
 function getAllFiles() {
+  autoMigrateRootUploads();
+
   const files = [];
 
   Object.keys(uploadDirs).forEach(category => {
@@ -119,15 +155,21 @@ function getAllFiles() {
       const fileNames = fs.readdirSync(dir);
       fileNames.forEach(fileName => {
         const filePath = path.join(dir, fileName);
-        const stats = fs.statSync(filePath);
-        files.push({
-          name: fileName,
-          category: category,
-          size: stats.size,
-          uploadDate: stats.mtime,
-          url: `/uploads/${category}/${fileName}`,
-          path: filePath
-        });
+        try {
+          const stats = fs.statSync(filePath);
+          if (stats.isFile()) {
+            files.push({
+              name: fileName,
+              category: category,
+              size: stats.size,
+              uploadDate: stats.mtime,
+              url: `/uploads/${category}/${encodeURIComponent(fileName)}`,
+              path: filePath
+            });
+          }
+        } catch (err) {
+          // ignore unreadable
+        }
       });
     }
   });
@@ -136,15 +178,22 @@ function getAllFiles() {
 }
 
 // Helper: Safely delete single file from disk
-function deleteFileOnServer(category, filename) {
-  if (!category || !filename || !uploadDirs[category]) {
+function deleteFileOnServer(category, rawFilename) {
+  if (!category || !rawFilename || !uploadDirs[category]) {
     return { success: false, message: 'Invalid category or filename' };
   }
-  const safeFilename = path.basename(filename);
-  const filePath = path.join(uploadDirs[category], safeFilename);
+  const decoded = decodeURIComponent(rawFilename);
+  let safeFilename = path.basename(decoded);
+  let filePath = path.join(uploadDirs[category], safeFilename);
+
   if (!fs.existsSync(filePath)) {
-    return { success: false, message: 'File not found' };
+    safeFilename = path.basename(rawFilename);
+    filePath = path.join(uploadDirs[category], safeFilename);
+    if (!fs.existsSync(filePath)) {
+      return { success: false, message: 'File not found' };
+    }
   }
+
   try {
     fs.unlinkSync(filePath);
     return { success: true, message: 'File deleted successfully' };
@@ -275,8 +324,15 @@ app.get('/api/file/:category/:filename', (req, res) => {
   const targetDir = uploadDirs[category];
 
   if (targetDir) {
-    const safeFilename = path.basename(filename);
-    const filePath = path.join(targetDir, safeFilename);
+    const decoded = decodeURIComponent(filename);
+    let safeFilename = path.basename(decoded);
+    let filePath = path.join(targetDir, safeFilename);
+
+    if (!fs.existsSync(filePath)) {
+      safeFilename = path.basename(filename);
+      filePath = path.join(targetDir, safeFilename);
+    }
+
     if (fs.existsSync(filePath)) {
       const stats = fs.statSync(filePath);
       const fileInfo = {
@@ -327,8 +383,14 @@ app.get('/api/download/:category/:filename', (req, res) => {
     return res.status(400).send('Invalid category');
   }
 
-  const safeFilename = path.basename(filename);
-  const filePath = path.join(targetDir, safeFilename);
+  const decoded = decodeURIComponent(filename);
+  let safeFilename = path.basename(decoded);
+  let filePath = path.join(targetDir, safeFilename);
+
+  if (!fs.existsSync(filePath)) {
+    safeFilename = path.basename(filename);
+    filePath = path.join(targetDir, safeFilename);
+  }
 
   if (fs.existsSync(filePath)) {
     res.download(filePath);
