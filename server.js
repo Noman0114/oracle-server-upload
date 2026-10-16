@@ -182,14 +182,22 @@ function deleteFileOnServer(category, rawFilename) {
   if (!category || !rawFilename || !uploadDirs[category]) {
     return { success: false, message: 'Invalid category or filename' };
   }
-  const decoded = decodeURIComponent(rawFilename);
-  let safeFilename = path.basename(decoded);
+  
+  let safeFilename = path.basename(rawFilename);
+  try {
+    safeFilename = path.basename(decodeURIComponent(rawFilename));
+  } catch (err) {
+    safeFilename = path.basename(rawFilename);
+  }
+
   let filePath = path.join(uploadDirs[category], safeFilename);
 
   if (!fs.existsSync(filePath)) {
-    safeFilename = path.basename(rawFilename);
-    filePath = path.join(uploadDirs[category], safeFilename);
-    if (!fs.existsSync(filePath)) {
+    const rawSafe = path.basename(rawFilename);
+    const rawPath = path.join(uploadDirs[category], rawSafe);
+    if (fs.existsSync(rawPath)) {
+      filePath = rawPath;
+    } else {
       return { success: false, message: 'File not found' };
     }
   }
@@ -567,8 +575,17 @@ app.get('/download/:category/:filename', isAuthenticated, (req, res) => {
     return res.status(400).send('Invalid category');
   }
 
-  const safeFilename = path.basename(filename);
-  const filePath = path.join(targetDir, safeFilename);
+  let safeFilename = path.basename(filename);
+  try {
+    safeFilename = path.basename(decodeURIComponent(filename));
+  } catch (e) {
+    safeFilename = path.basename(filename);
+  }
+  let filePath = path.join(targetDir, safeFilename);
+
+  if (!fs.existsSync(filePath)) {
+    filePath = path.join(targetDir, path.basename(filename));
+  }
 
   if (fs.existsSync(filePath)) {
     res.download(filePath);
@@ -582,21 +599,32 @@ app.get('/view/:category/:filename', isAuthenticated, (req, res) => {
   const targetDir = uploadDirs[category];
 
   if (targetDir) {
-    const safeFilename = path.basename(filename);
-    const filePath = path.join(targetDir, safeFilename);
+    let safeFilename = path.basename(filename);
+    try {
+      safeFilename = path.basename(decodeURIComponent(filename));
+    } catch (e) {
+      safeFilename = path.basename(filename);
+    }
+    let filePath = path.join(targetDir, safeFilename);
+
+    if (!fs.existsSync(filePath)) {
+      filePath = path.join(targetDir, path.basename(filename));
+    }
+
     if (fs.existsSync(filePath)) {
       const stats = fs.statSync(filePath);
+      const actualFilename = path.basename(filePath);
       const fileInfo = {
-        name: filename,
+        name: actualFilename,
         category: category,
         size: stats.size,
         uploadDate: stats.mtime,
-        path: `/uploads/${category}/${encodeURIComponent(filename)}`,
-        downloadPath: `/download/${category}/${encodeURIComponent(filename)}`
+        path: `/uploads/${category}/${encodeURIComponent(actualFilename)}`,
+        downloadPath: `/download/${category}/${encodeURIComponent(actualFilename)}`
       };
       
       const allFiles = getAllFiles();
-      const relatedFiles = allFiles.filter(f => !(f.category === category && f.name === filename)).slice(0, 12);
+      const relatedFiles = allFiles.filter(f => !(f.category === category && f.name === actualFilename)).slice(0, 12);
 
       return res.render('view', { file: fileInfo, relatedFiles: relatedFiles });
     }
@@ -648,6 +676,15 @@ app.post('/delete-multiple', isAuthenticated, (req, res) => {
 app.get('/logout', (req, res) => {
   req.session.destroy();
   res.redirect('/');
+});
+
+// Global error handling middleware (catches URIError, malformed requests, etc.)
+app.use((err, req, res, next) => {
+  if (err instanceof URIError) {
+    return res.status(400).json({ success: false, message: 'Bad request: URI malformed' });
+  }
+  console.error('Unhandled server error:', err);
+  res.status(500).json({ success: false, message: 'Internal server error' });
 });
 
 app.listen(PORT, () => {
