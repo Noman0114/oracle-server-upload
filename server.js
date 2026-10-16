@@ -57,10 +57,8 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({
-  storage: storage,
-  limits: {
-    fileSize: 500 * 1024 * 1024 // 500MB limit
-  }
+  storage: storage
+  // Unlimited file size: no limits configured
 });
 
 // Global CORS middleware - allows Next.js frontend (localhost:3000 / Vercel) and mobile apps
@@ -75,8 +73,8 @@ app.use((req, res, next) => {
 });
 
 // Body parsing with higher limits
-app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
-app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '500mb' }));
+app.use(bodyParser.json({ limit: '500mb' }));
 
 // Serve uploaded files statically with CORS and byte range support
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -687,7 +685,14 @@ app.use((err, req, res, next) => {
   res.status(500).json({ success: false, message: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
+
+// Disable timeout so large and unlimited file uploads are not prematurely interrupted
+server.timeout = 0;
+server.keepAliveTimeout = 60000;
+if (server.requestTimeout !== undefined) {
+  server.requestTimeout = 0;
+}
 

@@ -10,7 +10,7 @@
 ### **File Upload**
 - ✓ Drag & drop support
 - ✓ Multiple file upload
-- ✓ Large file support (up to 500MB)
+- ✓ Unlimited file size support (No size restriction)
 - ✓ Real-time upload progress
 - ✓ Automatic file categorization
 
@@ -474,7 +474,7 @@ find /home/opc/file-upload-server/uploads -type f -mtime +30 -delete
 ## 📝 Notes
 
 1. **Default port:** Changed to 8080 in ecosystem.config.js (can be modified)
-2. **File size limit:** 500MB per file
+2. **File size limit:** Unlimited (No limit configured)
 3. **Session duration:** 24 hours
 4. **Files per page:** 10 (can be changed in server.js line 124)
 
